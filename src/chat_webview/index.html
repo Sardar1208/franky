@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div id="empty-chat">
+        <div id="empty-chat-text">Let's start building</div>
+    </div>
+    <div id="chat">
+        <!-- Chat messages will go here -->
+    </div>
+    <div id="panel">
+        <div id="panel-header">
+            <div id="mode-text">Mode: <span id="mode-pill">Control</span></div>
+        </div>
+        <div id="settings">
+            <div id="mode-toggle-title">Select mode</div>
+            <div id="mode-toggle">
+                <button data-mode="Control">Control</button>
+                <button data-mode="Auto">Auto</button>
+                <button data-mode="Manager">Manager</button>
+            </div>
+            <!-- Additional settings go here -->
+            <p>Additional settings go here...</p>
+        </div>
+        <div id="input-container">
+            <input id="input" type="text" placeholder="Type a message..." />
+            <button id="send-button">➤</button>
+        </div>
+        <button id="expand-button">^</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>

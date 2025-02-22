@@ -1,0 +1,225 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background: #f5f5f5;
+}
+
+#chat {
+    flex: 1;
+    padding: 1em;
+    overflow-y: auto;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin: 0.5em;
+    border-radius: 8px;
+    margin-bottom: 8em;
+    /* Default padding to avoid overlap with contracted panel */
+    transition: padding-bottom 0.3s ease;
+    position: relative;
+    display: none;
+    /* Hidden by default */
+}
+
+#chat.has-messages {
+    display: block;
+    /* Show when messages exist */
+}
+
+#empty-chat {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f5f5;
+}
+
+#empty-chat-text {
+    font-size: 2em;
+    font-weight: bold;
+    background: linear-gradient(90deg, #333, #666);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    opacity: 1;
+    transition: opacity 0.5s ease;
+}
+
+#panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #ffffff;
+    padding: 1.5em 1em;
+    /* Increased vertical padding */
+    box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    height: 4em;
+    /* Contracted height */
+    overflow: visible;
+    border-top: 1px solid #e0e0e0;
+}
+
+#panel.expanded {
+    height: 16em;
+    /* Expanded height */
+}
+
+#panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1em;
+}
+
+#mode-text {
+    font-size: 0.9em;
+    color: #333;
+}
+
+#mode-pill {
+    background: #333;
+    color: white;
+    padding: 0.25em 0.75em;
+    border-radius: 20px;
+    font-size: 0.8em;
+    margin-left: 0.5em;
+}
+
+#expand-button {
+    position: absolute;
+    top: -1em;
+    /* Half sticks out of the panel */
+    right: 1em;
+    background: white;
+    border: none;
+    border-radius: 50%;
+    width: 2.5em;
+    height: 2.5em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    font-size: 1.2em;
+    color: #333;
+}
+
+#input-container {
+    display: flex;
+    align-items: center;
+    gap: 1em;
+    position: absolute;
+    bottom: 1em;
+    left: 1em;
+    right: 1em;
+}
+
+#input {
+    flex: 1;
+    padding: 0.5em;
+    box-sizing: border-box;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background: #fafafa;
+    color: #333;
+}
+
+#send-button {
+    background: #333;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 2.5em;
+    height: 2.5em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+#settings {
+    margin-bottom: 4em;
+    /* Space for the input container */
+    color: #333;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+#panel.expanded #settings {
+    opacity: 1;
+}
+
+#mode-toggle-title {
+    font-size: 0.9em;
+    margin-bottom: 0.5em;
+    color: #666;
+}
+
+#mode-toggle {
+    display: flex;
+    background: #f0f0f0;
+    border-radius: 20px;
+    padding: 0.25em;
+    margin-bottom: 1em;
+    position: relative;
+}
+
+#mode-toggle button {
+    flex: 1;
+    border: none;
+    background: none;
+    padding: 0.5em;
+    cursor: pointer;
+    border-radius: 20px;
+    transition: background 0.3s ease;
+}
+
+#mode-toggle button.active {
+    background: #333;
+    color: white;
+}
+
+.tool-message {
+    background: #333;
+    color: white;
+    padding: 0.5em;
+    margin: 0.5em 0;
+    border-radius: 5px;
+    font-style: italic;
+    display: flex;
+    align-items: center;
+}
+
+.loader {
+    border: 2px solid #ccc;
+    border-top: 2px solid #000;
+    border-radius: 50%;
+    width: 0.75em;
+    height: 0.75em;
+    margin-right: 0.5em;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    #panel.expanded {
+        height: 18em;
+        /* Slightly taller for small screens */
+    }
+
+    #chat {
+        padding-bottom: 6em;
+        /* More padding for small screens */
+    }
+}
