@@ -22,7 +22,13 @@ export class ChatManager {
     ------
     AVAILABLE TOOLS: 
     1) read_current_file: Read the currently open file and returns its contents.
+    -> OUTPUT FORMAT
+    {tell user what you are about to do} <TOOL_CALL>{"name": "<tool name>", "params": "<tool parameters>"}<TOOL_CALL_END>
+
     2) write_to_current_file: Writes the data to the current file.
+    -> OUTPUT FORMAT
+    {tell user what you are about to do} <TOOL_CALL>{"name": "<tool name>", "params": {"content": "<file content to write>"}}<TOOL_CALL_END> {Ending remarks if requied}
+    -> NOTE: The "<file content to write>" should be in proper json parsable format
 
     ------
     STRICT RULES:
@@ -30,16 +36,15 @@ export class ChatManager {
     2) Do not call the tool unnecessarily, if you already have its context. 
 
     ------
-    RESPONSE FORMAT IF USING A TOOL: 
-    {tell user what you are about to do} <TOOL_CALL>{"name": "<tool name>", "params": "<tool parameters>"}<TOOL_CALL_END>
-
-    Some tools require a follow up. In those cases, There should not be anything after the <TOOL_CALL_END>.
-    But for others, you can add stuff at the end too.
-
     Example 1: 'read the contents of the file'
     -> Here you need something from the user i.e. the file contents. So you will look at the available tools and call the appropriate one.
     -> Also, you can return your final response untill you get the contents from the tool. So there should be nothing at the end of a tool call
-    -> Expected respnse : 'Sure. I would need to read the file first. <TOOL_CALL>{"name": "read_current_file", "params": "{}"}<TOOL_CALL_END>'
+    -> Expected response : 'Sure. I would need to read the file first. <TOOL_CALL>{"name": "read_current_file", "params": "{}"}<TOOL_CALL_END>'
+
+    Example 2: 'write a js function to add two numbers to current file'
+    -> Here you need to write content to current file. So you will look at the available tools and call the appropriate one.
+    -> This request does not require any more data from the user, so just give your response freely but within the output formats of the tool
+    -> Expected response : 'Sure. Here is javaScript function that adds two numbers. <TOOL_CALL>{"name": "write_to_current_file", "params": {"content": "function add(a, b) {\\n  return a + b;\\n}"}}<TOOL_CALL_END>'
     `,
     });
   }
@@ -52,113 +57,6 @@ export class ChatManager {
     this.messages.push({ role: "user", content: userPrompt });
     await this.processResponse(webviewView);
   }
-
-  // private async processResponse(webviewView: any) {
-  //   console.log("messages: ", this.messages);
-
-  //   const response = await fetch("http://localhost:11434/api/chat", {
-  //     method: "POST",
-  //     headers: { "Content-Type": "application/json" },
-  //     body: JSON.stringify({
-  //       model: "llama3.1",
-  //       stream: true,
-  //       messages: this.messages,
-  //     }),
-  //   });
-
-  //   if (!response.body) {
-  //     console.error("No response body received.");
-  //     this.sendMessage(webviewView, MessageType.ERROR, "System error");
-  //     return;
-  //   }
-
-  //   const reader = response.body.getReader();
-  //   const decoder = new TextDecoder();
-  //   let firstWordBuffer = ""; // Buffer for first word
-  //   let assistantResponse = "";
-  //   let firstWordDetected = false;
-  //   let isToolCall = false;
-  //   let toolCallBuffer = ""; // Buffer for full tool JSON
-
-  //   while (true) {
-  //     const { value, done } = await reader.read();
-  //     if (done) break;
-
-  //     const chunk = decoder.decode(value, { stream: true });
-  //     const lines = chunk.split("\n").filter((line) => line.trim() !== "");
-
-  //     for (const line of lines) {
-  //       try {
-  //         const json = JSON.parse(line);
-  //         // console.log("json:", json);
-
-  //         if (!firstWordDetected) {
-  //           // Buffer first word until we get a complete word
-  //           firstWordBuffer += json.message.content;
-
-  //           if (
-  //             firstWordBuffer.startsWith("TEXTRES:") ||
-  //             firstWordBuffer.startsWith("TOOLCALL:")
-  //           ) {
-  //             firstWordDetected = true;
-  //             const firstWord = firstWordBuffer.split(":")[0];
-
-  //             if (firstWord === "TOOLCALL") {
-  //               isToolCall = true;
-  //             } else if (firstWord === "TEXTRES") {
-  //               // Remove the prefix and start streaming response
-  //               const textResponse = firstWordBuffer.replace(
-  //                 /^TEXTRES:\s*/,
-  //                 ""
-  //               );
-  //               this.sendMessage(webviewView, MessageType.TEXT, textResponse);
-  //               assistantResponse += textResponse;
-  //             }
-
-  //             firstWordBuffer = ""; // Clear buffer
-  //           }
-  //           continue; // Wait until first word is determined
-  //         }
-
-  //         if (isToolCall) {
-  //           // Buffer the entire tool call response
-  //           toolCallBuffer += json.message.content;
-  //         } else {
-  //           // Normal text streaming
-  //           this.sendMessage(
-  //             webviewView,
-  //             MessageType.TEXT,
-  //             json.message.content
-  //           );
-
-  //           assistantResponse += json.message.content;
-  //         }
-  //       } catch (error) {
-  //         console.error("Error parsing JSON chunk:", error);
-  //       }
-  //     }
-  //   }
-
-  //   if (isToolCall) {
-  //     // Extract tool JSON after the entire response is received
-  //     // console.log("This is a tool call!!!", toolCallBuffer.trim());
-  //     // const toolJsonMatch = toolCallBuffer.match(/TOOLCALL:\s*(\{.*\})/);
-  //     // console.log("matched ? :", toolJsonMatch);
-  //     // if (toolJsonMatch) {
-  //     try {
-  //       const toolJson = JSON.parse(toolCallBuffer);
-  //       // console.log("Extracted tool JSON:", toolJson);
-  //       await this.handleToolCall(toolJson, webviewView);
-  //       return;
-  //     } catch (e) {
-  //       console.error("Error parsing tool JSON:", e);
-  //     }
-  //     // }
-  //   } else {
-  //     // Store assistant response in message history
-  //     this.messages.push({ role: "assistant", content: assistantResponse });
-  //   }
-  // }
 
   private async processResponse(webviewView: any) {
     console.log("messages: ", this.messages);
@@ -191,7 +89,6 @@ export class ChatManager {
       if (done) break;
 
       const chunk = decoder.decode(value, { stream: true });
-      // buffer += chunk;
 
       // Split the buffer into lines (each line is a JSON object)
       const lines = chunk.split("\n").filter((line) => line.trim() !== "");
@@ -221,6 +118,7 @@ export class ChatManager {
           toolCallBuffer += word;
           if (word.includes("<TOOL_CALL_END>")) {
             // Tool call ended, process the tool call
+            console.log("final tool data: ", toolCallBuffer.replace("<TOOL_CALL_END>", "").trim());
             try {
               const toolJson = JSON.parse(
                 toolCallBuffer.replace("<TOOL_CALL_END>", "").trim()
@@ -313,6 +211,18 @@ export class ChatManager {
         await this.processResponse(webviewView);
       } catch (e) {
         console.log("Error executing tool:", e);
+      }
+    } else if (toolCall.name === "write_to_current_file") {
+      const editor = vscode.window.activeTextEditor;
+      if (editor) {
+        console.log(toolCall);
+        const position = new vscode.Position(0, 0); // Insert at the beginning of the file
+
+        editor.edit((editBuilder) => {
+          editBuilder.insert(position, toolCall.params.content ?? "blah blah");
+        });
+      } else {
+        vscode.window.showErrorMessage("No active editor found.");
       }
     }
   }
