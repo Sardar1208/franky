@@ -89,7 +89,6 @@ export class ChatManager {
       if (done) break;
 
       const chunk = decoder.decode(value, { stream: true });
-      // buffer += chunk;
 
       // Split the buffer into lines (each line is a JSON object)
       const lines = chunk.split("\n").filter((line) => line.trim() !== "");
