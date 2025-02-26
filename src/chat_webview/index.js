@@ -9,35 +9,48 @@ const modeToggle = document.getElementById("mode-toggle");
 const modePill = document.getElementById("mode-pill");
 const modeText = document.getElementById("mode-text");
 const emptyChatText = document.getElementById("empty-chat-text");
+const fileAccessToggle = document.getElementById("file-access-toggle");
+const fileAccessIcon = document.getElementById("file-access-icon-text");
+const addCustomFileButton = document.getElementById("add-custom-file-button");
 const vscode = acquireVsCodeApi();
 let toolMessageElement = null;
 
 // Set default mode
 let currentModeValue = "Control";
+let currentFileAccessValue = "Current file";
 
 // Update mode pill and toggle
 const updateMode = (mode) => {
   currentModeValue = mode;
   modePill.textContent = mode;
-  // Update toggle buttons
   Array.from(modeToggle.children).forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === mode);
   });
 };
 
+// Update file access mode and icon
+const updateFileAccessMode = (mode) => {
+  currentFileAccessValue = mode;
+  fileAccessIcon.textContent =
+    mode === "Current file" ? "📄" : mode === "Custom files" ? "📂" : "📁";
+  Array.from(fileAccessToggle.children).forEach((button) => {
+    button.classList.toggle("active", button.dataset.fileAccess === mode);
+  });
+  addCustomFileButton.style.display =
+    mode === "Custom files" ? "block" : "none";
+};
+
 // Toggle panel expansion
 expandButton.addEventListener("click", () => {
   panel.classList.toggle("expanded");
-  expandButton.textContent = panel.classList.contains("expanded") ? "⌄" : "^";
-  // Hide mode text in expanded state
+  expandButton.textContent = panel.classList.contains("expanded") ? "▼" : "▲";
   modeText.style.display = panel.classList.contains("expanded")
     ? "none"
     : "flex";
-  // Adjust chat padding based on panel state
   if (panel.classList.contains("expanded")) {
-    chat.style.paddingBottom = "17em"; /* Expanded panel height + margin */
+    chat.style.paddingBottom = "17em";
   } else {
-    chat.style.paddingBottom = "7em"; /* Contracted panel height + margin */
+    chat.style.paddingBottom = "7em";
   }
 });
 
@@ -49,11 +62,18 @@ modeToggle.addEventListener("click", (event) => {
   }
 });
 
+// Handle file access toggle clicks
+fileAccessToggle.addEventListener("click", (event) => {
+  if (event.target.tagName === "BUTTON") {
+    const mode = event.target.dataset.fileAccess;
+    updateFileAccessMode(mode);
+  }
+});
+
 // Handle sending messages
 const sendMessage = () => {
   const userMessage = input.value;
   if (userMessage.trim()) {
-    // Hide empty chat and show chat div
     emptyChat.style.display = "none";
     chat.classList.add("has-messages");
     const messageElement = document.createElement("div");
@@ -104,7 +124,6 @@ window.addEventListener("message", (event) => {
     }
   }
 
-  // Hide empty chat state if messages exist
   if (chat.children.length > 0) {
     emptyChat.style.display = "none";
     chat.classList.add("has-messages");
@@ -112,3 +131,6 @@ window.addEventListener("message", (event) => {
 
   chat.scrollTop = chat.scrollHeight;
 });
+
+// Initialize file access mode
+updateFileAccessMode(currentFileAccessValue);
