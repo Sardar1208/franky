@@ -21,9 +21,22 @@ export class ChatManager {
 
     ------
     AVAILABLE TOOLS: 
-    1) read_current_file: Read the currently open file and returns its contents.
+    1) read_file: Reads the requested file(s) and returns its contents.
     -> OUTPUT FORMAT
-    {tell user what you are about to do} <TOOL_CALL>{"name": "<tool name>", "params": "<tool parameters>"}<TOOL_CALL_END>
+    <Explain what you are about to do> <what are you going to do with the result> <TOOL_CALL>{"name": "<tool name>", "params": "<tool parameters>"}<TOOL_CALL_END>
+    -> EXAMPLE
+    'Let me read the contents of the file. So that I will be able to summarise it <TOOL_CALL>{"name": "read_file", "params": "{}"}<TOOL_CALL_END>'
+    -> TOOL PARAMETERS
+    file_name: Reads a specific file. Value should be the name of the file.
+    read_all_files: boolean value that determines weather to read all avaialble files or not.
+    -> PARAMETERS RULES
+    Only one parameter can be used, decide percisely on basis of what user wants.
+    If no parameters are passed, it will return the contents of the currently open file.
+    Do not call the read_all_files if not necessary. As it is a very heavy operation
+    -> EXMAPLE 
+    "params": "{"file_name": "index.html"}" -> To read a specific file
+    "params": "{"all_files": "true"}" -> To read all available files
+    "params": "{}" -> To read the current open file
 
     2) write_to_current_file: Writes the data to the current file.
     -> OUTPUT FORMAT
@@ -36,10 +49,11 @@ export class ChatManager {
     2) Do not call the tool unnecessarily, if you already have its context. 
 
     ------
-    Example 1: 'read the contents of the file'
+    Example 1: 'read the contents of this file'
     -> Here you need something from the user i.e. the file contents. So you will look at the available tools and call the appropriate one.
-    -> Also, you can return your final response untill you get the contents from the tool. So there should be nothing at the end of a tool call
-    -> Expected response : 'Sure. I would need to read the file first. <TOOL_CALL>{"name": "read_current_file", "params": "{}"}<TOOL_CALL_END>'
+    -> Since user did not provide the file name or context, it means he must be referring to the current open file.
+    -> Also, you cant return your final response untill you get the contents from the tool. So there should be nothing at the end of a tool call
+    -> Expected response : 'Sure. I would need to read the file first. <TOOL_CALL>{"name": "read_file", "params": "{}"}<TOOL_CALL_END>'
 
     Example 2: 'write a js function to add two numbers to current file'
     -> Here you need to write content to current file. So you will look at the available tools and call the appropriate one.
@@ -118,7 +132,10 @@ export class ChatManager {
           toolCallBuffer += word;
           if (word.includes("<TOOL_CALL_END>")) {
             // Tool call ended, process the tool call
-            console.log("final tool data: ", toolCallBuffer.replace("<TOOL_CALL_END>", "").trim());
+            console.log(
+              "final tool data: ",
+              toolCallBuffer.replace("<TOOL_CALL_END>", "").trim()
+            );
             try {
               const toolJson = JSON.parse(
                 toolCallBuffer.replace("<TOOL_CALL_END>", "").trim()
@@ -186,33 +203,50 @@ export class ChatManager {
   ) {
     // console.log("Tool call detected:", toolCall);
 
-    if (toolCall.name === "read_current_file") {
+    if (toolCall.name === "read_file") {
       this.sendMessage(
         webviewView,
         MessageType.TOOL_USE,
         "reading file content..."
       );
       try {
-        const fileContent = await this.readActiveFile();
-        // console.log("Tool Execution: read_current_file, Content:", fileContent);
+        let fileContent;
 
-        let tool_content = {
+        // New conditional logic for file handling
+        if (toolCall.params?.file_name) {
+          // Handle specific file request
+          fileContent = await this.findAndReadFile(toolCall.params.file_name);
+        } else {
+          // Default to original active file behavior
+          fileContent = await this.readActiveFile();
+        }
+
+        const tool_content = {
           name: toolCall.name,
-          content: fileContent.length == 0 ? "<empty file>" : fileContent,
+          params: toolCall.params,
+          content: fileContent.length === 0 ? "File is empty" : fileContent,
         };
 
         this.messages.push({ role: "assistant", content: assistantResponse });
 
-        // Add tool response to messages
+        // Add tool response with proper source information
         this.messages.push({
           role: "tool",
-          content: JSON.stringify(tool_content),
+          content: JSON.stringify({
+            ...tool_content,
+          }),
         });
 
-        // Re-call the LLM to process the final response
         await this.processResponse(webviewView);
       } catch (e) {
         console.log("Error executing tool:", e);
+        this.messages.push({
+          role: "tool",
+          content: JSON.stringify({
+            name: toolCall.name,
+            error: `File read failed`,
+          }),
+        });
       }
     } else if (toolCall.name === "write_to_current_file") {
       const editor = vscode.window.activeTextEditor;
@@ -226,6 +260,27 @@ export class ChatManager {
       } else {
         vscode.window.showErrorMessage("No active editor found.");
       }
+    }
+  }
+
+  private async findAndReadFile(fileName: string): Promise<string> {
+    const files = await vscode.workspace.findFiles(
+      `**/${fileName}`,
+      "**/node_modules/**"
+    );
+
+    if (files.length > 0) {
+      const fileUri = files[0];
+      const fileContent = await vscode.workspace.fs.readFile(fileUri);
+      const contentString = Buffer.from(fileContent).toString("utf8");
+
+      // vscode.window.showInformationMessage(`File found: ${fileUri.fsPath}`);
+      console.log("File Contents:", contentString);
+
+      return contentString;
+    } else {
+      // vscode.window.showWarningMessage(`File not found: ${fileName}`);
+      return "File not found";
     }
   }
 
