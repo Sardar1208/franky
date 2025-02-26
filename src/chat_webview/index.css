@@ -2,6 +2,8 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     height: 100vh;
+    width: 100vw;
+    padding: 0;
     display: flex;
     flex-direction: column;
     background: #f5f5f5;
@@ -9,23 +11,46 @@ body {
 
 #chat {
     flex: 1;
-    padding: 1em;
-    overflow-y: auto;
-    background: #ffffff;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    margin: 0.5em;
-    border-radius: 8px;
-    margin-bottom: 8em;
     /* Default padding to avoid overlap with contracted panel */
+    margin-bottom: 8em;
     transition: padding-bottom 0.3s ease;
-    position: relative;
     display: none;
-    /* Hidden by default */
 }
 
 #chat.has-messages {
     display: block;
-    /* Show when messages exist */
+}
+
+.user-message {
+    color: black; /* Dark blue text */
+    padding: 0.75em;
+    margin: 0.5em 0;
+    border-radius: 8px;
+    max-width: 80%;
+    align-self: flex-end;
+    animation: fadeIn 0.3s ease;
+}
+
+.user-message::before {
+    content: "User: ";
+    font-weight: bold;
+    color: black;
+}
+
+.system-message {
+    color: #333; /* Dark gray text */
+    padding: 0.75em;
+    margin: 0.5em 0;
+    border-radius: 8px;
+    max-width: 80%;
+    align-self: flex-start;
+    animation: fadeIn 0.3s ease;
+}
+
+.system-message::before {
+    content: "Franky: ";
+    font-weight: bold;
+    color: #333;
 }
 
 #empty-chat {

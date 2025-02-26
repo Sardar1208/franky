@@ -57,7 +57,8 @@ const sendMessage = () => {
     emptyChat.style.display = "none";
     chat.classList.add("has-messages");
     const messageElement = document.createElement("div");
-    messageElement.textContent = "You: " + userMessage;
+    messageElement.textContent = userMessage;
+    messageElement.classList.add("user-message");
     chat.appendChild(messageElement);
     input.value = "";
     chat.scrollTop = chat.scrollHeight;
@@ -97,7 +98,7 @@ window.addEventListener("message", (event) => {
       lastMessage.textContent += message.text;
     } else {
       const messageElement = document.createElement("div");
-      messageElement.textContent = "System: " + message.text;
+      messageElement.textContent = message.text;
       messageElement.classList.add("system-message");
       chat.appendChild(messageElement);
     }

@@ -130,6 +130,7 @@ export class ChatManager {
                 webviewView,
                 assistantResponse
               );
+              return;
             } catch (e) {
               console.error("Error parsing tool JSON:", e);
             }
@@ -161,6 +162,7 @@ export class ChatManager {
             isToolCall = false;
             toolCallBuffer = "";
             await this.handleToolCall(toolJson, webviewView, assistantResponse);
+            return;
           } catch (e) {
             console.error("Error parsing tool JSON:", e);
           }
