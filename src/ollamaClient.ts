@@ -17,48 +17,9 @@ export class ChatManager {
     this.messages.push({
       role: "system",
       content: `You are Franky, an extremely skilled and friendly software developer assistant who exisits inside a code editor. So all your questions will be in the context of the code editor, its files, read, write ,edit etc. 
-    You have the following tools at your disposal that can be used only if it is required.
 
-    ------
-    AVAILABLE TOOLS: 
-    1) read_file: Reads the requested file(s) and returns its contents.
-    -> OUTPUT FORMAT
-    <Explain what you are about to do> <what are you going to do with the result> <TOOL_CALL>{"name": "<tool name>", "params": "<tool parameters>"}<TOOL_CALL_END>
-    -> EXAMPLE
-    'Let me read the contents of the file. So that I will be able to summarise it <TOOL_CALL>{"name": "read_file", "params": "{}"}<TOOL_CALL_END>'
-    -> TOOL PARAMETERS
-    file_name: Reads a specific file. Value should be the name of the file.
-    read_all_files: boolean value that determines weather to read all avaialble files or not.
-    -> PARAMETERS RULES
-    Only one parameter can be used, decide percisely on basis of what user wants.
-    If no parameters are passed, it will return the contents of the currently open file.
-    Do not call the read_all_files if not necessary. As it is a very heavy operation
-    -> EXMAPLE 
-    "params": "{"file_name": "index.html"}" -> To read a specific file
-    "params": "{"all_files": "true"}" -> To read all available files
-    "params": "{}" -> To read the current open file
-
-    2) write_to_current_file: Writes the data to the current file.
-    -> OUTPUT FORMAT
-    {tell user what you are about to do} <TOOL_CALL>{"name": "<tool name>", "params": {"content": "<file content to write>"}}<TOOL_CALL_END> {Ending remarks if requied}
-    -> NOTE: The "<file content to write>" should be in proper json parsable format
-
-    ------
-    STRICT RULES:
-    1) You can only use the above tools. Nothing else!
+    1) You can only use the available tools. Nothing else!
     2) Do not call the tool unnecessarily, if you already have its context. 
-
-    ------
-    Example 1: 'read the contents of this file'
-    -> Here you need something from the user i.e. the file contents. So you will look at the available tools and call the appropriate one.
-    -> Since user did not provide the file name or context, it means he must be referring to the current open file.
-    -> Also, you cant return your final response untill you get the contents from the tool. So there should be nothing at the end of a tool call
-    -> Expected response : 'Sure. I would need to read the file first. <TOOL_CALL>{"name": "read_file", "params": "{}"}<TOOL_CALL_END>'
-
-    Example 2: 'write a js function to add two numbers to current file'
-    -> Here you need to write content to current file. So you will look at the available tools and call the appropriate one.
-    -> This request does not require any more data from the user, so just give your response freely but within the output formats of the tool
-    -> Expected response : 'Sure. Here is javaScript function that adds two numbers. <TOOL_CALL>{"name": "write_to_current_file", "params": {"content": "function add(a, b) {\\n  return a + b;\\n}"}}<TOOL_CALL_END>'
     `,
     });
   }
@@ -79,9 +40,30 @@ export class ChatManager {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: "llama3.1",
+        model: "qwen3:14b-q4_k_m",
         stream: true,
         messages: this.messages,
+        think: false,
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "read_file",
+              description: "Read the contents of a file",
+              parameters: {
+                type: "object",
+                properties: {
+                  filename: {
+                    type: "string",
+                    description:
+                      "The name of the file to read e.g. index.ts . return 'active_file' if current active file has to be read.",
+                  },
+                },
+                required: ["filename"],
+              },
+            },
+          },
+        ],
       }),
     });
 
@@ -100,7 +82,9 @@ export class ChatManager {
 
     while (true) {
       const { value, done } = await reader.read();
-      if (done) break;
+      if (done) {
+        break;
+      }
 
       const chunk = decoder.decode(value, { stream: true });
 
@@ -113,80 +97,34 @@ export class ChatManager {
           const json = JSON.parse(line);
           const content = json.message.content; // Extract the actual content
 
+          if (json.message.tool_calls) {
+            isToolCall = true;
+            await this.toolCall(
+              json.message.tool_calls[0].function,
+              webviewView
+            );
+          } else {
+            let spaceIndex;
+            while ((spaceIndex = buffer.indexOf(" ")) !== -1) {
+              const word = buffer.substring(0, spaceIndex + 1); // Include the space
+              buffer = buffer.substring(spaceIndex + 1); // Remove the processed word from buffer
+
+              this.sendMessage(webviewView, MessageType.TEXT, word);
+              assistantResponse += word;
+            }
+            this.sendMessage(webviewView, MessageType.TEXT, buffer);
+            assistantResponse += buffer;
+            buffer = "";
+          }
+
+          console.log(content);
+
           // Append the content to the buffer for word-by-word processing
           buffer += content;
         } catch (error) {
           console.error("Error parsing JSON chunk:", error);
           continue;
         }
-      }
-
-      // Process buffer word by word
-      let spaceIndex;
-      while ((spaceIndex = buffer.indexOf(" ")) !== -1) {
-        const word = buffer.substring(0, spaceIndex + 1); // Include the space
-        buffer = buffer.substring(spaceIndex + 1); // Remove the processed word from buffer
-
-        if (isToolCall) {
-          // If we're inside a tool call, buffer everything until <TOOL_CALL_END>
-          toolCallBuffer += word;
-          if (word.includes("<TOOL_CALL_END>")) {
-            // Tool call ended, process the tool call
-            console.log(
-              "final tool data: ",
-              toolCallBuffer.replace("<TOOL_CALL_END>", "").trim()
-            );
-            try {
-              const toolJson = JSON.parse(
-                toolCallBuffer.replace("<TOOL_CALL_END>", "").trim()
-              );
-              isToolCall = false;
-              toolCallBuffer = "";
-              await this.handleToolCall(
-                toolJson,
-                webviewView,
-                assistantResponse
-              );
-              return;
-            } catch (e) {
-              console.error("Error parsing tool JSON:", e);
-            }
-          }
-        } else {
-          // Check if the word is <TOOL_CALL>
-          if (word.includes("<TOOL_CALL>")) {
-            isToolCall = true;
-            toolCallBuffer = word.split("<TOOL_CALL>")[1] ?? "";
-            toolCallBuffer = toolCallBuffer.trim();
-          } else {
-            // Stream the word to the UI
-            this.sendMessage(webviewView, MessageType.TEXT, word);
-            assistantResponse += word;
-          }
-        }
-      }
-    }
-
-    // Handle any remaining data in the buffer
-    if (buffer.length > 0) {
-      if (isToolCall) {
-        toolCallBuffer += buffer;
-        if (toolCallBuffer.includes("<TOOL_CALL_END>")) {
-          try {
-            const toolJson = JSON.parse(
-              toolCallBuffer.replace("<TOOL_CALL_END>", "").trim()
-            );
-            isToolCall = false;
-            toolCallBuffer = "";
-            await this.handleToolCall(toolJson, webviewView, assistantResponse);
-            return;
-          } catch (e) {
-            console.error("Error parsing tool JSON:", e);
-          }
-        }
-      } else {
-        this.sendMessage(webviewView, MessageType.TEXT, buffer);
-        assistantResponse += buffer;
       }
     }
 
@@ -196,48 +134,43 @@ export class ChatManager {
     }
   }
 
-  private async handleToolCall(
-    toolCall: any,
-    webviewView: any,
-    assistantResponse: string
-  ) {
-    // console.log("Tool call detected:", toolCall);
-
+  private async toolCall(toolCall: any, webviewView: any) {
+    console.log("toolCall: ", toolCall);
     if (toolCall.name === "read_file") {
-      this.sendMessage(
-        webviewView,
-        MessageType.TOOL_USE,
-        "reading file content..."
-      );
       try {
+        this.sendMessage(
+          webviewView,
+          MessageType.TOOL_USE,
+          "reading file content..."
+        );
+
         let fileContent;
 
-        // New conditional logic for file handling
-        if (toolCall.params?.file_name) {
-          // Handle specific file request
-          fileContent = await this.findAndReadFile(toolCall.params.file_name);
-        } else {
-          // Default to original active file behavior
-          fileContent = await this.readActiveFile();
+        if (toolCall?.arguments?.filename) {
+          const filename = toolCall.arguments.filename;
+          if (filename === "active_file") {
+            // Default to original active file behavior
+            fileContent = await this.readActiveFile();
+          } else {
+            fileContent = await this.findAndReadFile(filename);
+          }
+
+          const tool_content = {
+            name: toolCall.name,
+            params: toolCall?.arguments,
+            content: fileContent.length === 0 ? "File is empty" : fileContent,
+          };
+
+          // Add tool response with proper source information
+          this.messages.push({
+            role: "tool",
+            content: JSON.stringify({
+              ...tool_content,
+            }),
+          });
+
+          await this.processResponse(webviewView);
         }
-
-        const tool_content = {
-          name: toolCall.name,
-          params: toolCall.params,
-          content: fileContent.length === 0 ? "File is empty" : fileContent,
-        };
-
-        this.messages.push({ role: "assistant", content: assistantResponse });
-
-        // Add tool response with proper source information
-        this.messages.push({
-          role: "tool",
-          content: JSON.stringify({
-            ...tool_content,
-          }),
-        });
-
-        await this.processResponse(webviewView);
       } catch (e) {
         console.log("Error executing tool:", e);
         this.messages.push({
@@ -248,7 +181,15 @@ export class ChatManager {
           }),
         });
       }
-    } else if (toolCall.name === "write_to_current_file") {
+    }
+  }
+
+  private async handleToolCall(
+    toolCall: any,
+  ) {
+    // console.log("Tool call detected:", toolCall);
+
+    if (toolCall.name === "write_to_current_file") {
       const editor = vscode.window.activeTextEditor;
       if (editor) {
         console.log(toolCall);

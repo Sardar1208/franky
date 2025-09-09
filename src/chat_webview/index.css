@@ -126,6 +126,7 @@ body {
     color: transparent;
     opacity: 1;
     transition: opacity 0.5s ease;
+    padding-bottom: 2em;
 }
 
 /* Panel */
