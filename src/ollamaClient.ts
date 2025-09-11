@@ -1,17 +1,11 @@
 import * as vscode from "vscode";
-
-let MessageType = {
-  TEXT: "text",
-  TOOL_USE: "tool_use",
-  ERROR: "error",
-};
+import { Messages, MessageType } from "./types/common_types";
+import { sendMessage } from "./UtilityFunctions";
+import { handleToolCall } from "./tools/ReadFile";
+import { toolDefinations } from "./tools/ToolDefinations";
 
 export class ChatManager {
-  private messages: Array<{
-    role: "user" | "system" | "assistant" | "tool";
-    content: string;
-    name?: string;
-  }> = [];
+  private messages: Messages = [];
 
   constructor() {
     this.messages.push({
@@ -22,10 +16,6 @@ export class ChatManager {
     2) Do not call the tool unnecessarily, if you already have its context. 
     `,
     });
-  }
-
-  private sendMessage(webviewView: any, type: string, data: string) {
-    webviewView.webview.postMessage({ type: type, text: data });
   }
 
   public async streamChatWithOllama(webviewView: any, userPrompt: string) {
@@ -44,32 +34,13 @@ export class ChatManager {
         stream: true,
         messages: this.messages,
         think: false,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "read_file",
-              description: "Read the contents of a file",
-              parameters: {
-                type: "object",
-                properties: {
-                  filename: {
-                    type: "string",
-                    description:
-                      "The name of the file to read e.g. index.ts . return 'active_file' if current active file has to be read.",
-                  },
-                },
-                required: ["filename"],
-              },
-            },
-          },
-        ],
+        tools: toolDefinations,
       }),
     });
 
     if (!response.body) {
       console.error("No response body received.");
-      this.sendMessage(webviewView, MessageType.ERROR, "System error");
+      sendMessage(webviewView, MessageType.ERROR, "System error");
       return;
     }
 
@@ -78,7 +49,6 @@ export class ChatManager {
     let buffer = ""; // Buffer for incoming data
     let assistantResponse = "";
     let isToolCall = false;
-    let toolCallBuffer = ""; // Buffer for tool call content
 
     while (true) {
       const { value, done } = await reader.read();
@@ -109,10 +79,10 @@ export class ChatManager {
               const word = buffer.substring(0, spaceIndex + 1); // Include the space
               buffer = buffer.substring(spaceIndex + 1); // Remove the processed word from buffer
 
-              this.sendMessage(webviewView, MessageType.TEXT, word);
+              sendMessage(webviewView, MessageType.TEXT, word);
               assistantResponse += word;
             }
-            this.sendMessage(webviewView, MessageType.TEXT, buffer);
+            sendMessage(webviewView, MessageType.TEXT, buffer);
             assistantResponse += buffer;
             buffer = "";
           }
@@ -137,99 +107,25 @@ export class ChatManager {
   private async toolCall(toolCall: any, webviewView: any) {
     console.log("toolCall: ", toolCall);
     if (toolCall.name === "read_file") {
-      try {
-        this.sendMessage(
-          webviewView,
-          MessageType.TOOL_USE,
-          "reading file content..."
-        );
-
-        let fileContent;
-
-        if (toolCall?.arguments?.filename) {
-          const filename = toolCall.arguments.filename;
-          if (filename === "active_file") {
-            // Default to original active file behavior
-            fileContent = await this.readActiveFile();
-          } else {
-            fileContent = await this.findAndReadFile(filename);
-          }
-
-          const tool_content = {
-            name: toolCall.name,
-            params: toolCall?.arguments,
-            content: fileContent.length === 0 ? "File is empty" : fileContent,
-          };
-
-          // Add tool response with proper source information
-          this.messages.push({
-            role: "tool",
-            content: JSON.stringify({
-              ...tool_content,
-            }),
-          });
-
-          await this.processResponse(webviewView);
-        }
-      } catch (e) {
-        console.log("Error executing tool:", e);
-        this.messages.push({
-          role: "tool",
-          content: JSON.stringify({
-            name: toolCall.name,
-            error: `File read failed`,
-          }),
-        });
-      }
+      await handleToolCall(webviewView, toolCall, this.messages, () => {
+        this.processResponse(webviewView);
+      });
     }
   }
 
-  private async handleToolCall(
-    toolCall: any,
-  ) {
-    // console.log("Tool call detected:", toolCall);
+  // private async handleToolCall(toolCall: any) {
+  //   if (toolCall.name === "write_to_current_file") {
+  //     const editor = vscode.window.activeTextEditor;
+  //     if (editor) {
+  //       console.log(toolCall);
+  //       const position = new vscode.Position(0, 0); // Insert at the beginning of the file
 
-    if (toolCall.name === "write_to_current_file") {
-      const editor = vscode.window.activeTextEditor;
-      if (editor) {
-        console.log(toolCall);
-        const position = new vscode.Position(0, 0); // Insert at the beginning of the file
-
-        editor.edit((editBuilder) => {
-          editBuilder.insert(position, toolCall.params.content ?? "blah blah");
-        });
-      } else {
-        vscode.window.showErrorMessage("No active editor found.");
-      }
-    }
-  }
-
-  private async findAndReadFile(fileName: string): Promise<string> {
-    const files = await vscode.workspace.findFiles(
-      `**/${fileName}`,
-      "**/node_modules/**"
-    );
-
-    if (files.length > 0) {
-      const fileUri = files[0];
-      const fileContent = await vscode.workspace.fs.readFile(fileUri);
-      const contentString = Buffer.from(fileContent).toString("utf8");
-
-      // vscode.window.showInformationMessage(`File found: ${fileUri.fsPath}`);
-      console.log("File Contents:", contentString);
-
-      return contentString;
-    } else {
-      // vscode.window.showWarningMessage(`File not found: ${fileName}`);
-      return "File not found";
-    }
-  }
-
-  private async readActiveFile(): Promise<string> {
-    const editor = vscode.window.activeTextEditor;
-    if (editor) {
-      return editor.document.getText();
-    }
-    return "No active file open.";
-  }
+  //       editor.edit((editBuilder) => {
+  //         editBuilder.insert(position, toolCall.params.content ?? "blah blah");
+  //       });
+  //     } else {
+  //       vscode.window.showErrorMessage("No active editor found.");
+  //     }
+  //   }
+  // }
 }
