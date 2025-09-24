@@ -3,6 +3,7 @@ import { Messages, MessageType } from "./types/common_types";
 import { sendMessage } from "./UtilityFunctions";
 import { handleToolCall } from "./tools/ReadFile";
 import { toolDefinations } from "./tools/ToolDefinations";
+import { WTF_tool_call } from "./tools/WriteToFile";
 
 export class ChatManager {
   private messages: Messages = [];
@@ -111,21 +112,8 @@ export class ChatManager {
         this.processResponse(webviewView);
       });
     }
+    if (toolCall.name === "write_to_file") {
+      await WTF_tool_call(webviewView, toolCall, this.messages, () => {});
+    }
   }
-
-  // private async handleToolCall(toolCall: any) {
-  //   if (toolCall.name === "write_to_current_file") {
-  //     const editor = vscode.window.activeTextEditor;
-  //     if (editor) {
-  //       console.log(toolCall);
-  //       const position = new vscode.Position(0, 0); // Insert at the beginning of the file
-
-  //       editor.edit((editBuilder) => {
-  //         editBuilder.insert(position, toolCall.params.content ?? "blah blah");
-  //       });
-  //     } else {
-  //       vscode.window.showErrorMessage("No active editor found.");
-  //     }
-  //   }
-  // }
 }

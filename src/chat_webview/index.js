@@ -105,15 +105,25 @@ window.addEventListener("message", (event) => {
     if (!toolMessageElement) {
       toolMessageElement = document.createElement("div");
       toolMessageElement.classList.add("tool-message");
-      toolMessageElement.innerHTML =
-        '<div class="loader"></div>' + message.text;
+
+      toolMessageElement.innerHTML = `
+        <div class="tool-card">
+          <div class="loader"></div>
+          <span class="tool-text">${message.text}</span>
+        </div>
+      `;
       chat.appendChild(toolMessageElement);
     }
   } else if (message.type === "text") {
     if (toolMessageElement) {
-      chat.removeChild(toolMessageElement);
-      toolMessageElement = null;
+      // Replace loader with green tick instead of removing the dialog
+      const loader = toolMessageElement.querySelector(".loader");
+      if (loader) {
+        loader.outerHTML = `<div class="tick">✔</div>`;
+      }
+      toolMessageElement = null; // reset so new tool_use can create again
     }
+
     if (lastMessage && lastMessage.classList.contains("system-message")) {
       lastMessage.textContent += message.text;
     } else {
