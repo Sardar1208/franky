@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <!-- Header -->
+    <div id="header">
+        <div id="header-text">Franky</div>
+        <div id="header-icons">
+            <button id="file-access-icon">
+                <span id="file-access-icon-text">📄</span>
+            </button>
+            <button id="add-custom-file-button" style="display: none;">+</button>
+        </div>
+    </div>
+
+    <!-- Empty Chat State -->
+    <div id="empty-chat">
+        <div id="empty-chat-text">Let's start building</div>
+    </div>
+
+    <!-- Chat Messages -->
+    <div id="chat">
+        <!-- Chat messages will go here -->
+    </div>
+
+    <!-- Panel -->
+    <div id="panel">
+        <div id="panel-header">
+            <div id="mode-text">Mode: <span id="mode-pill">Control</span></div>
+        </div>
+        <div id="settings">
+            <div class="toggle-title">Select mode</div>
+            <div id="mode-toggle">
+                <button data-mode="Control">Control</button>
+                <button data-mode="Auto">Auto</button>
+                <button data-mode="Manager">Manager</button>
+            </div>
+
+            <!-- File Access Mode Toggle -->
+            <div class="toggle-title">File access mode</div>
+            <div id="file-access-toggle">
+                <button data-file-access="Current file">Current file</button>
+                <button data-file-access="Custom files">Custom files</button>
+                <button data-file-access="All files">All files</button>
+            </div>
+        </div>
+        <div id="input-container">
+            <input id="input" type="text" placeholder="Type a message..." />
+            <button id="send-button">➤</button>
+        </div>
+        <button id="expand-button">▲</button>
+    </div>
+    <script src="script.js"></script>
+</body>
+
+</html>
